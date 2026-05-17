@@ -1,0 +1,227 @@
+{
+  "uid": "pytest-test-observer-test-detail",
+  "title": "pytest-test-observer — Test detail",
+  "tags": ["pytest", "test-observer", "drill-down"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-30d", "to": "now" },
+  "links": [
+    {
+      "title": "Overview",
+      "tooltip": "Back to the pytest-test-observer overview dashboard",
+      "icon": "dashboard",
+      "type": "link",
+      "url": "/d/pytest-test-observer-overview?var-table=${table}&var-feature=${feature}&var-story=${story}",
+      "targetBlank": false,
+      "keepTime": true,
+      "includeVars": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "table",
+        "label": "Table",
+        "type": "query",
+        "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+        "query": "SELECT t.name FROM system.tables t INNER JOIN system.columns c ON t.database = c.database AND t.name = c.table WHERE t.database = 'default' AND c.name = 'nodeid' GROUP BY t.name ORDER BY t.name",
+        "refresh": 2,
+        "sort": 1,
+        "current": {}
+      },
+      {
+        "name": "feature",
+        "label": "Allure feature",
+        "description": "Narrows the Test dropdown to tests carrying @allure.feature(\"X\"). Pick 'all' to leave the Test list unfiltered. Tests with no allure feature label are hidden when a specific feature is selected.",
+        "type": "query",
+        "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+        "query": "SELECT 'all' AS feature UNION ALL SELECT DISTINCT arrayJoin(allure_labels['feature']) AS feature FROM default.${table}",
+        "refresh": 2,
+        "sort": 1,
+        "current": { "value": "all", "text": "all" }
+      },
+      {
+        "name": "story",
+        "label": "Allure story",
+        "description": "Further narrows the Test dropdown by @allure.story. Auto-refreshes when the feature changes. Tests with no allure story label are hidden when a specific story is selected.",
+        "type": "query",
+        "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+        "query": "SELECT 'all' AS story UNION ALL SELECT DISTINCT arrayJoin(allure_labels['story']) AS story FROM default.${table} WHERE (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote}))",
+        "refresh": 2,
+        "sort": 1,
+        "current": { "value": "all", "text": "all" }
+      },
+      {
+        "name": "nodeid",
+        "label": "Test (nodeid)",
+        "description": "Pick the test to drill into. The list is filtered by the Table / Feature / Story selectors above.",
+        "type": "query",
+        "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+        "query": "SELECT DISTINCT nodeid FROM default.${table} WHERE (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote})) AND (${story:singlequote} = 'all' OR has(allure_labels['story'], ${story:singlequote})) ORDER BY nodeid",
+        "refresh": 2,
+        "sort": 1,
+        "current": {}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Total recorded outcomes",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT count() AS outcomes FROM default.${table} WHERE nodeid = ${nodeid:singlequote} AND $__timeFilter(timestamp)"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Distinct runs",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "purple", "value": null }] } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT countDistinct(run_id) AS runs FROM default.${table} WHERE nodeid = ${nodeid:singlequote} AND $__timeFilter(timestamp)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Pass rate %",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "min": 0, "max": 100, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 90 }, { "color": "green", "value": 98 }] } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT countIf(status IN ('passed', 'skipped')) / count() * 100 AS pass_rate FROM default.${table} WHERE nodeid = ${nodeid:singlequote} AND $__timeFilter(timestamp)"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "p50 duration (passed)",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": { "defaults": { "unit": "s", "decimals": 3, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.5 }, { "color": "red", "value": 2 }] } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT quantileExact(0.5)(duration) AS p50 FROM default.${table} WHERE nodeid = ${nodeid:singlequote} AND status = 'passed' AND $__timeFilter(timestamp)"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "barchart",
+      "title": "Outcomes per run (stacked)",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 9 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": { "orientation": "auto", "showValue": "auto", "stacking": "normal", "groupWidth": 0.7, "barWidth": 0.97, "xField": "time", "xTickLabelRotation": -45, "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true, "calcs": ["sum"] }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": {
+        "defaults": { "custom": { "axisLabel": "attempts" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "passed" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
+          { "matcher": { "id": "byName", "options": "failed" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
+          { "matcher": { "id": "byName", "options": "broken" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] },
+          { "matcher": { "id": "byName", "options": "skipped" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }] }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT min(timestamp) AS time, countIf(status='passed') AS passed, countIf(status='failed') AS failed, countIf(status='broken') AS broken, countIf(status='skipped') AS skipped FROM default.${table} WHERE nodeid = ${nodeid:singlequote} AND $__timeFilter(timestamp) GROUP BY run_id ORDER BY time"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Duration over time (passed runs)",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 9 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 10, "showPoints": "auto", "pointSize": 5, "spanNulls": true, "axisPlacement": "auto" } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "rawSql": "SELECT timestamp AS time, duration FROM default.${table} WHERE nodeid = ${nodeid:singlequote} AND status = 'passed' AND $__timeFilter(timestamp) ORDER BY time"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Recent runs (most recent first)",
+      "gridPos": { "x": 0, "y": 13, "w": 24, "h": 11 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": { "showHeader": true, "footer": { "show": false, "reducer": ["sum"], "fields": "" } },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "time" }, "properties": [{ "id": "unit", "value": "dateTimeAsIso" }] },
+          { "matcher": { "id": "byName", "options": "duration" }, "properties": [{ "id": "unit", "value": "s" }, { "id": "decimals", "value": 4 }] },
+          { "matcher": { "id": "byName", "options": "status" }, "properties": [
+            { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+            { "id": "mappings", "value": [
+              { "type": "value", "options": { "passed": { "color": "green", "index": 0 }, "failed": { "color": "red", "index": 1 }, "broken": { "color": "orange", "index": 2 }, "skipped": { "color": "blue", "index": 3 } } }
+            ]}
+          ]}
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT timestamp AS time, status, when_phase, duration, if(ci_provider = 'local' OR ci_run_id = '', 'local', concat(ci_provider, ' #', ci_run_id)) AS pipeline, if(git_branch = '', '—', git_branch) AS branch, substring(git_commit, 1, 8) AS commit, worker_id FROM default.${table} WHERE nodeid = ${nodeid:singlequote} AND $__timeFilter(timestamp) ORDER BY time DESC LIMIT 100"
+        }
+      ]
+    }
+  ]
+}

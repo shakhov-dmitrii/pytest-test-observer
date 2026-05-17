@@ -1,0 +1,306 @@
+{
+  "uid": "pytest-test-observer-overview",
+  "title": "pytest-test-observer — Overview",
+  "tags": ["pytest", "test-observer"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-7d", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "table",
+        "label": "Table",
+        "type": "query",
+        "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+        "query": "SELECT t.name FROM system.tables t INNER JOIN system.columns c ON t.database = c.database AND t.name = c.table WHERE t.database = 'default' AND c.name = 'nodeid' GROUP BY t.name ORDER BY t.name",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": false,
+        "multi": false,
+        "regex": "",
+        "current": {}
+      },
+      {
+        "name": "feature",
+        "label": "Allure feature",
+        "description": "Filter to tests carrying @allure.feature(\"X\"). Pick 'all' to include tests with no allure feature label — picking a specific feature excludes them.",
+        "type": "query",
+        "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+        "query": "SELECT 'all' AS feature UNION ALL SELECT DISTINCT arrayJoin(allure_labels['feature']) AS feature FROM default.${table}",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": false,
+        "multi": false,
+        "current": { "value": "all", "text": "all" }
+      },
+      {
+        "name": "story",
+        "label": "Allure story",
+        "description": "Filter to tests carrying @allure.story(\"X\"). Options auto-narrow to stories that exist within the currently-selected feature. Picking a specific story also excludes tests with no allure story label.",
+        "type": "query",
+        "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+        "query": "SELECT 'all' AS story UNION ALL SELECT DISTINCT arrayJoin(allure_labels['story']) AS story FROM default.${table} WHERE (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote}))",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": false,
+        "multi": false,
+        "current": { "value": "all", "text": "all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Test outcomes",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT count() AS outcomes FROM default.${table} WHERE $__timeFilter(timestamp) AND (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote})) AND (${story:singlequote} = 'all' OR has(allure_labels['story'], ${story:singlequote}))"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Distinct runs",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "purple", "value": null }] } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT countDistinct(run_id) AS runs FROM default.${table} WHERE $__timeFilter(timestamp) AND (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote})) AND (${story:singlequote} = 'all' OR has(allure_labels['story'], ${story:singlequote}))"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "piechart",
+      "title": "Status distribution",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": {
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "pieType": "donut",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "passed" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
+          { "matcher": { "id": "byName", "options": "failed" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
+          { "matcher": { "id": "byName", "options": "broken" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] },
+          { "matcher": { "id": "byName", "options": "skipped" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }] }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT countIf(status = 'passed') AS passed, countIf(status = 'failed') AS failed, countIf(status = 'broken') AS broken, countIf(status = 'skipped') AS skipped FROM default.${table} WHERE $__timeFilter(timestamp) AND (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote})) AND (${story:singlequote} = 'all' OR has(allure_labels['story'], ${story:singlequote}))"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Pass rate %",
+      "description": "Mean of per-bucket pass rates over the selected time range. Formula: (passed + skipped) / (passed + failed + broken + skipped) * 100 — skipped tests are counted as 'not failed' alongside passed (they didn't run, so they didn't fail). Failed and broken drag the rate down. Sparkline shows how the rate moved across buckets.",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": {
+        "reduceOptions": { "calcs": ["mean"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "min": 0, "max": 100, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 90 }, { "color": "green", "value": 98 }] } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "rawSql": "SELECT $__timeInterval(timestamp) AS time, countIf(status IN ('passed', 'skipped')) / count() * 100 AS pass_rate FROM default.${table} WHERE $__timeFilter(timestamp) AND (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote})) AND (${story:singlequote} = 'all' OR has(allure_labels['story'], ${story:singlequote})) GROUP BY time ORDER BY time"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Slowest tests (p50, passed only)",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 10 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": { "showHeader": true, "footer": { "show": false, "reducer": ["sum"], "fields": "" } },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "cellOptions": { "type": "auto" } } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "nodeid" }, "properties": [{ "id": "custom.hidden", "value": true }] },
+          { "matcher": { "id": "byName", "options": "test" }, "properties": [{ "id": "links", "value": [
+            { "title": "Open test detail", "url": "/d/pytest-test-observer-test-detail?var-table=${table}&var-nodeid=${__data.fields.nodeid}", "targetBlank": false }
+          ]}] },
+          { "matcher": { "id": "byName", "options": "p50_seconds" }, "properties": [{ "id": "unit", "value": "s" }, { "id": "decimals", "value": 3 }] },
+          { "matcher": { "id": "byName", "options": "p95_seconds" }, "properties": [{ "id": "unit", "value": "s" }, { "id": "decimals", "value": 3 }] }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT arrayElement(splitByString('::', nodeid), -1) AS test, nodeid, count() AS runs, quantileExact(0.5)(duration) AS p50_seconds, quantileExact(0.95)(duration) AS p95_seconds FROM default.${table} WHERE $__timeFilter(timestamp) AND status = 'passed' AND (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote})) AND (${story:singlequote} = 'all' OR has(allure_labels['story'], ${story:singlequote})) GROUP BY nodeid, test ORDER BY p50_seconds DESC LIMIT 10"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Flakiest tests (intra-run flake rate)",
+      "description": "A test is 'flaky in a run' when that run contains at least one 'passed' attempt AND at least one 'failed' or 'broken' attempt — broken (setup/teardown error) is counted as a failure-style outcome alongside failed. flake_rate_pct = flaky_runs / runs over the time range.",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 10 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": { "showHeader": true, "footer": { "show": false, "reducer": ["sum"], "fields": "" } },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "nodeid" }, "properties": [{ "id": "custom.hidden", "value": true }] },
+          { "matcher": { "id": "byName", "options": "test" }, "properties": [{ "id": "links", "value": [
+            { "title": "Open test detail", "url": "/d/pytest-test-observer-test-detail?var-table=${table}&var-nodeid=${__data.fields.nodeid}", "targetBlank": false }
+          ]}] },
+          { "matcher": { "id": "byName", "options": "flake_rate_pct" }, "properties": [{ "id": "unit", "value": "percent" }, { "id": "decimals", "value": 1 }, { "id": "custom.cellOptions", "value": { "type": "color-background", "mode": "gradient" } }, { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 20 }] } }] }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "WITH per_run AS (SELECT nodeid, run_id, countIf(status IN ('failed','broken')) > 0 AND countIf(status='passed') > 0 AS flaked FROM default.${table} WHERE $__timeFilter(timestamp) AND (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote})) AND (${story:singlequote} = 'all' OR has(allure_labels['story'], ${story:singlequote})) GROUP BY nodeid, run_id) SELECT arrayElement(splitByString('::', nodeid), -1) AS test, nodeid, count() AS runs, countIf(flaked) AS flaky_runs, countIf(flaked) / count() * 100 AS flake_rate_pct FROM per_run GROUP BY nodeid, test HAVING flaky_runs > 0 ORDER BY flaky_runs DESC, flake_rate_pct DESC LIMIT 10"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Pipeline runs (most recent first)",
+      "gridPos": { "x": 0, "y": 27, "w": 24, "h": 10 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": { "showHeader": true, "footer": { "show": false, "reducer": ["sum"], "fields": "" } },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "pass_rate_pct" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "decimals", "value": 1 },
+              { "id": "custom.cellOptions", "value": { "type": "color-background", "mode": "gradient" } },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 90 }, { "color": "green", "value": 98 }] } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "time" },
+            "properties": [{ "id": "unit", "value": "dateTimeAsIso" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "failed" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }, { "id": "custom.cellOptions", "value": { "type": "color-text" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "broken" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }, { "id": "custom.cellOptions", "value": { "type": "color-text" } }]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT any(timestamp) AS time, if(ci_provider = 'local' OR ci_run_id = '', 'local', concat(ci_provider, ' #', ci_run_id)) AS pipeline, if(git_branch = '', '—', git_branch) AS branch, substring(git_commit, 1, 8) AS commit, count() AS total, countIf(status = 'passed') AS passed, countIf(status = 'failed') AS failed, countIf(status = 'broken') AS broken, countIf(status = 'skipped') AS skipped, countIf(status IN ('passed', 'skipped')) / count() * 100 AS pass_rate_pct FROM default.${table} WHERE $__timeFilter(timestamp) AND (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote})) AND (${story:singlequote} = 'all' OR has(allure_labels['story'], ${story:singlequote})) GROUP BY run_id, ci_provider, ci_run_id, git_branch, git_commit ORDER BY time DESC LIMIT 50"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "barchart",
+      "title": "Tests per pipeline run (stacked by status)",
+      "gridPos": { "x": 0, "y": 18, "w": 24, "h": 9 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": {
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "normal",
+        "groupWidth": 0.7,
+        "barWidth": 0.97,
+        "barRadius": 0,
+        "xTickLabelRotation": -45,
+        "xTickLabelSpacing": 0,
+        "xField": "time",
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true, "calcs": ["sum"] },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "fieldConfig": {
+        "defaults": { "custom": { "axisPlacement": "auto", "axisLabel": "tests" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "passed" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
+          { "matcher": { "id": "byName", "options": "failed" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
+          { "matcher": { "id": "byName", "options": "broken" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] },
+          { "matcher": { "id": "byName", "options": "skipped" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }] }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT min(timestamp) AS time, countIf(status = 'passed') AS passed, countIf(status = 'failed') AS failed, countIf(status = 'broken') AS broken, countIf(status = 'skipped') AS skipped FROM default.${table} WHERE $__timeFilter(timestamp) AND (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote})) AND (${story:singlequote} = 'all' OR has(allure_labels['story'], ${story:singlequote})) GROUP BY run_id ORDER BY time"
+        }
+      ]
+    }
+  ]
+}

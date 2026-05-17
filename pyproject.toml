@@ -1,0 +1,88 @@
+[project]
+name = "pytest-test-observer"
+version = "0.1.0"
+description = "A pytest plugin for observing test execution events."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Dmitrii Shakhov", email = "sourx.rus@gmail.com" }
+]
+requires-python = ">=3.9"
+dependencies = [
+    "pytest>=7.0",
+    "clickhouse-connect>=0.6.0",
+]
+
+[project.optional-dependencies]
+allure = ["allure-pytest>=2.13"]
+
+[project.entry-points.pytest11]
+test_observer = "pytest_test_observer.plugin"
+
+[build-system]
+requires = ["uv_build>=0.10.9,<0.11.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=7.0",
+    "allure-pytest>=2.13",
+    "pytest-xdist>=3.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore:The configuration option \"asyncio_default_fixture_loop_scope\":pytest.PytestDeprecationWarning",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src/pytest_test_observer"]
+omit = []
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+precision = 1
+fail_under = 90
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "@overload",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+extend-exclude = [".venv", "dist", "build"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # bugbear
+    "UP",  # pyupgrade
+    "SIM", # simplify
+    "RUF", # ruff-specific
+]
+ignore = [
+    "E501", # line length is enforced by formatter, not the linter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]   # `assert False` is fine in tests
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

@@ -1,0 +1,41 @@
+[project]
+name = "pytest-test-observer-example"
+version = "0.0.0"
+description = "Minimal example of using pytest-test-observer in a real project."
+requires-python = ">=3.9"
+dependencies = [
+    "pytest-test-observer[allure]",
+    "pytest-rerunfailures>=14",
+]
+
+[tool.uv]
+package = false
+
+# In a real downstream project this would be the published package:
+#     dependencies = ["pytest-test-observer[allure]"]
+# Here we point at the in-repo source so the example stays in lock-step.
+[tool.uv.sources]
+pytest-test-observer = { path = "../..", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+# --- pytest-test-observer configuration ---
+# Set once here; no CLI flags or env vars needed for normal use.
+ch_url = "localhost:8123"
+ch_table = "example_results"
+# ch_user, ch_password, ch_db can also be set here.
+
+# Uncomment to send only when running in CI (CI=true / GITHUB_ACTIONS / GITLAB_CI / CIRCLECI / JENKINS_URL):
+# ch_send_from = "ci"
+
+# Forward-schema-migration policy. Default is "true" — when a new plugin version
+# adds a column, the plugin runs `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for you.
+# Set to "false" if your team requires DDL changes to come from a controlled
+# migration process; the plugin will then warn with the exact ALTER statement to
+# run and buffer rows to JSONL until you apply it manually.
+# ch_auto_migrate = false
+
+# Override per-environment via env vars:
+#   PYTEST_OBSERVER_CH_URL=clickhouse.internal:8123
+#   PYTEST_OBSERVER_CH_PASSWORD=$(get-secret clickhouse-password)

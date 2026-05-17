@@ -1,0 +1,25 @@
+[project]
+name = "pytest-test-observer-example-xdist"
+version = "0.0.0"
+description = "Example: pytest-test-observer with pytest-xdist parallelism."
+requires-python = ">=3.9"
+dependencies = [
+    "pytest-test-observer[allure]",
+    "pytest-xdist>=3.0",
+    "pytest-rerunfailures>=14",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+pytest-test-observer = { path = "../..", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# `-n auto` uses one worker per CPU core. Override with `-n 4` etc. on the CLI.
+addopts = "-n auto"
+
+# --- pytest-test-observer configuration ---
+ch_url = "localhost:8123"
+ch_table = "xdist_example_results"

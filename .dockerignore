@@ -1,0 +1,17 @@
+.venv/
+.git/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+**/__pycache__/
+**/*.py[oc]
+*.egg-info/
+build/
+dist/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+.DS_Store
+.idea/
+.vscode/
