@@ -4,7 +4,13 @@ An easy-to-use pytest plugin to take your test observability to the next level. 
 
 ## Install
 
-The plugin isn't published to PyPI yet - install from source:
+### PyPI
+
+```bash
+pip install pytest-test-observer==0.1.0
+```
+
+### From sources
 
 ```bash
 uv add --editable git+https://github.com/shakhov-dmitrii/pytest-test-observer
