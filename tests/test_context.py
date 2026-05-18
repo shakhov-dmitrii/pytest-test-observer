@@ -10,10 +10,20 @@ from pytest_test_observer.constants import _CI_PROVIDERS
 def _clear_ci_env(monkeypatch):
     sentinel_vars = {p.sentinel for p in _CI_PROVIDERS}
     extra_vars = {
-        "GITHUB_RUN_ID", "GITHUB_SHA", "GITHUB_REF_NAME", "GITHUB_HEAD_REF",
-        "CI_PIPELINE_ID", "CI_COMMIT_SHA", "CI_COMMIT_REF_NAME",
-        "CIRCLE_BUILD_NUM", "CIRCLE_SHA1", "CIRCLE_BRANCH",
-        "BUILD_ID", "BUILD_NUMBER", "GIT_COMMIT", "GIT_BRANCH",
+        "GITHUB_RUN_ID",
+        "GITHUB_SHA",
+        "GITHUB_REF_NAME",
+        "GITHUB_HEAD_REF",
+        "CI_PIPELINE_ID",
+        "CI_COMMIT_SHA",
+        "CI_COMMIT_REF_NAME",
+        "CIRCLE_BUILD_NUM",
+        "CIRCLE_SHA1",
+        "CIRCLE_BRANCH",
+        "BUILD_ID",
+        "BUILD_NUMBER",
+        "GIT_COMMIT",
+        "GIT_BRANCH",
     }
     for var in sentinel_vars | extra_vars:
         monkeypatch.delenv(var, raising=False)

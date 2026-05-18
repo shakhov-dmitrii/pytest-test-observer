@@ -168,6 +168,7 @@ def test_cli_overrides_env(pytester, fake_clients, monkeypatch):
 
 def test_send_from_ci_skips_when_not_in_ci(pytester, fake_clients, monkeypatch):
     from pytest_test_observer.constants import _CI_PROVIDERS
+
     for p in _CI_PROVIDERS:
         monkeypatch.delenv(p.sentinel, raising=False)
     pytester.makepyfile("def test_one(): assert True")

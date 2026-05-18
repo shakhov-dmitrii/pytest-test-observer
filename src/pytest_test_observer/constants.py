@@ -1,9 +1,9 @@
-from enum import StrEnum
+from enum import Enum
 
 from pytest_test_observer.models import _CIProvider
 
 
-class TestStatus(StrEnum):
+class TestStatus(str, Enum):
     PASSED = "passed"
     FAILED = "failed"
     BROKEN = "broken"
