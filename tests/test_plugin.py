@@ -397,7 +397,7 @@ def test_build_row_assembles_every_field():
     assert row["when_phase"] == "call"
     assert row["duration"] == 0.05
     assert row["markers"] == ["smoke", "slow"]
-    assert row["worker_id"] == "master"  
+    assert row["worker_id"] == "master"
     assert row["started_at"] == 1000500
     assert row["finished_at"] == 1000575
     assert row["allure_severity"] == "critical"

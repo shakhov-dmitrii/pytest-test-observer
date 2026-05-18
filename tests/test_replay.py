@@ -32,12 +32,7 @@ def test_parse_jsonl_text_fills_missing_columns_with_defaults():
 
 
 def test_parse_jsonl_text_skips_malformed_lines(recwarn):
-    text = (
-        '{"nodeid": "good"}\n'
-        "not json at all\n"
-        "\n" 
-        '{"nodeid": "also-good"}\n'
-    )
+    text = '{"nodeid": "good"}\nnot json at all\n\n{"nodeid": "also-good"}\n'
     rows, skipped = replay.parse_jsonl_text(text)
     assert len(rows) == 2
     assert skipped == 1

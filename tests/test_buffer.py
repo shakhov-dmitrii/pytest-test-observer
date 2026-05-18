@@ -85,8 +85,8 @@ def test_write_jsonl_run_id_only_unsafe_chars():
 
 def test_write_jsonl_empty_rows_does_not_create_file():
     path = buffer.write_jsonl([], "empty-run")
-    assert path.parent.exists() 
-    assert not path.exists() 
+    assert path.parent.exists()
+    assert not path.exists()
 
 
 def test_json_default_raises_on_unsupported_type():
