@@ -166,7 +166,11 @@ def test_cli_overrides_env(pytester, fake_clients, monkeypatch):
     assert table == "cli_table"
 
 
-def test_send_from_ci_skips_when_not_in_ci(pytester, fake_clients):
+def test_send_from_ci_skips_when_not_in_ci(pytester, fake_clients, monkeypatch):
+    from pytest_test_observer.constants import _CI_PROVIDERS
+
+    for p in _CI_PROVIDERS:
+        monkeypatch.delenv(p.sentinel, raising=False)
     pytester.makepyfile("def test_one(): assert True")
     result = pytester.runpytest_inprocess(
         "--ch-url=localhost:8123",
@@ -397,7 +401,7 @@ def test_build_row_assembles_every_field():
     assert row["when_phase"] == "call"
     assert row["duration"] == 0.05
     assert row["markers"] == ["smoke", "slow"]
-    assert row["worker_id"] == "master"  
+    assert row["worker_id"] == "master"
     assert row["started_at"] == 1000500
     assert row["finished_at"] == 1000575
     assert row["allure_severity"] == "critical"

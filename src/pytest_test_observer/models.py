@@ -24,7 +24,7 @@ class CIContext(TypedDict):
 @dataclass(frozen=True)
 class _CIProvider:
     name: str
-    sentinel: str 
+    sentinel: str
     run_id_vars: tuple[str, ...]
     commit_vars: tuple[str, ...]
     branch_vars: tuple[str, ...]
