@@ -1,6 +1,17 @@
 from __future__ import annotations
 
+import os
+
+import pytest
+
 from pytest_test_observer import options
+
+
+@pytest.fixture(autouse=True)
+def _clear_observer_env(monkeypatch):
+    for key in list(os.environ):
+        if key.startswith("PYTEST_OBSERVER_"):
+            monkeypatch.delenv(key)
 
 
 class _FakeConfig:
