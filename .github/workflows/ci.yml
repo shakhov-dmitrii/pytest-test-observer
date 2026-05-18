@@ -69,12 +69,15 @@ jobs:
             --name pytest-test-observer-clickhouse \
             -p 8123:8123 \
             -p 9000:9000 \
+            -e CLICKHOUSE_PASSWORD=clickhouse \
             clickhouse/clickhouse-server:latest
-            
+
           timeout 30 bash -c 'until curl -s http://localhost:8123; do sleep 1; done'
-          
+
       - name: Install dependencies
         run: make install
-        
+
       - name: Run smoke tests
-        run: make smoke
+        env:
+          PYTEST_OBSERVER_CH_PASSWORD: clickhouse
+        run: make smoke CH_PASSWORD=clickhouse

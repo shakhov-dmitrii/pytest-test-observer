@@ -1,4 +1,5 @@
 UV ?= uv
+CH_PASSWORD ?=
 
 .PHONY: help install test lint format coverage build clean smoke example
 
@@ -29,6 +30,7 @@ clean:
 smoke: ## Run the test suite against the local ClickHouse
 	$(UV) run pytest tests/ --ch-url=localhost:8123 --ch-table=smoke -v
 	docker exec pytest-test-observer-clickhouse clickhouse-client \
+	  --password "$(CH_PASSWORD)" \
 	  -q "SELECT nodeid, status, allure_severity FROM default.smoke ORDER BY started_at LIMIT 10 FORMAT PrettyCompact"
 
 example:
