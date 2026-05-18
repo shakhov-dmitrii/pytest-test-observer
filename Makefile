@@ -5,6 +5,7 @@ CH_PASSWORD ?=
 
 install:
 	$(UV) sync
+	$(UV) run pre-commit install
 
 test:
 	$(UV) run pytest -v
