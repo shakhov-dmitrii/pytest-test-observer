@@ -3,7 +3,7 @@ CH_PASSWORD ?=
 
 .PHONY: help install test lint format coverage build clean smoke example
 
-install: 
+install:
 	$(UV) sync
 
 test:
