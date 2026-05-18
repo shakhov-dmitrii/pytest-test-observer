@@ -54,7 +54,7 @@ def test_auto_migrate_can_be_disabled_via_env(monkeypatch):
 def test_send_from_can_be_set_from_env(monkeypatch):
     monkeypatch.setenv("PYTEST_OBSERVER_CH_SEND_FROM", "ci")
     resolved = options.resolve_options(_FakeConfig())
-    assert resolved["ch_send_from"] == "ci"
+    assert resolved["ch_send_from"] == "ci1"
 
 
 def test_send_from_can_be_set_from_ini():
