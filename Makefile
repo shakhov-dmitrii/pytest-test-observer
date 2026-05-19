@@ -29,7 +29,7 @@ clean:
 	find . -type d -name "*.egg-info" -prune -exec rm -rf {} +
 
 smoke: ## Run the test suite against the local ClickHouse
-	$(UV) run pytest tests/ --ch-url=localhost:8123 --ch-table=smoke -v
+	$(UV) run pytest tests/ --ch-url=localhost:8123 --ch-table=smoke --ch-password="$(CH_PASSWORD)" -v
 	docker exec pytest-test-observer-clickhouse clickhouse-client \
 	  --password "$(CH_PASSWORD)" \
 	  -q "SELECT nodeid, status, ci_provider, ci_run_id, git_branch,  FROM default.smoke ORDER BY started_at LIMIT 10 FORMAT PrettyCompact"
