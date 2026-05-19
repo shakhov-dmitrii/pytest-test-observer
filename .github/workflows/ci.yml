@@ -58,6 +58,8 @@ jobs:
     name: Smoke Tests (ClickHouse)
     needs: test
     runs-on: ubuntu-latest
+    env:
+      CH_PASSWORD: clickhouse
     steps:
       - uses: actions/checkout@v4
 
@@ -72,7 +74,7 @@ jobs:
             --name pytest-test-observer-clickhouse \
             -p 8123:8123 \
             -p 9000:9000 \
-            -e CLICKHOUSE_PASSWORD=clickhouse \
+            -e CLICKHOUSE_PASSWORD=$CH_PASSWORD \
             clickhouse/clickhouse-server:latest
 
           timeout 30 bash -c 'until curl -s http://localhost:8123; do sleep 1; done'
@@ -81,6 +83,43 @@ jobs:
         run: make install
 
       - name: Run smoke tests
-        env:
-          PYTEST_OBSERVER_CH_PASSWORD: clickhouse
-        run: make smoke CH_PASSWORD=clickhouse
+        run: make smoke CH_PASSWORD=$CH_PASSWORD
+
+  smoke-replay:
+    name: Smoke Replay Tests (ClickHouse)
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      CH_PASSWORD: clickhouse
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: make install
+
+      - name: Run smoke tests
+        run: uv run pytest tests/ --ch-url=localhost:8123 --ch-table=smoke --ch-password=$CH_PASSWORD -v
+
+      - name: Start ClickHouse Container
+        run: |
+          docker run -d \
+            --name pytest-test-observer-clickhouse \
+            -p 8123:8123 \
+            -p 9000:9000 \
+            -e CLICKHOUSE_PASSWORD=$CH_PASSWORD \
+            clickhouse/clickhouse-server:latest
+
+          timeout 30 bash -c 'until curl -s http://localhost:8123; do sleep 1; done'
+
+      - name: Replaying
+        run: |
+          uv run python -m pytest_test_observer.replay --ch-url=localhost:8123 --ch-table=smoke --ch-password=$CH_PASSWORD
+
+          docker exec pytest-test-observer-clickhouse clickhouse-client \
+            --password "$CH_PASSWORD" \
+            -q "SELECT nodeid, status, ci_provider, ci_run_id, git_branch FROM default.smoke ORDER BY started_at LIMIT 10 FORMAT PrettyCompact"
