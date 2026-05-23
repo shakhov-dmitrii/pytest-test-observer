@@ -2,6 +2,8 @@
 
 An easy-to-use pytest plugin to take your test observability to the next level. Compatible with `allure-pytest`.
 
+![alt text](image.png)
+
 ## Install
 
 ### PyPI
