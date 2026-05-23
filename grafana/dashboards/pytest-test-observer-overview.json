@@ -55,7 +55,7 @@
       "id": 1,
       "type": "stat",
       "title": "Test outcomes",
-      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
       "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
       "options": {
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
@@ -80,7 +80,7 @@
       "id": 2,
       "type": "stat",
       "title": "Distinct runs",
-      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
       "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
       "options": {
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
@@ -97,6 +97,39 @@
           "format": 1,
           "queryType": "table",
           "rawSql": "SELECT countDistinct(run_id) AS runs FROM default.${table} WHERE $__timeFilter(timestamp) AND (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote})) AND (${story:singlequote} = 'all' OR has(allure_labels['story'], ${story:singlequote}))"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Flaky tests %",
+      "description": "Percentage of distinct test nodeids that flaked (had both a passed and a failed/broken outcome in the same run) at least once over the selected time range.",
+      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 20 }] }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "WITH per_run AS (SELECT nodeid, run_id, countIf(status IN ('failed','broken')) > 0 AND countIf(status = 'passed') > 0 AS flaked FROM default.${table} WHERE $__timeFilter(timestamp) AND (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote})) AND (${story:singlequote} = 'all' OR has(allure_labels['story'], ${story:singlequote})) GROUP BY nodeid, run_id) SELECT countIf(ever_flaked) / count() * 100 AS flaky_pct FROM (SELECT nodeid, max(flaked) AS ever_flaked FROM per_run GROUP BY nodeid)"
         }
       ]
     },
@@ -141,7 +174,7 @@
       "type": "stat",
       "title": "Pass rate %",
       "description": "Mean of per-bucket pass rates over the selected time range. Formula: (passed + skipped) / (passed + failed + broken + skipped) * 100 — skipped tests are counted as 'not failed' alongside passed (they didn't run, so they didn't fail). Failed and broken drag the rate down. Sparkline shows how the rate moved across buckets.",
-      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 4 },
+      "gridPos": { "x": 0, "y": 4, "w": 6, "h": 4 },
       "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
       "options": {
         "reduceOptions": { "calcs": ["mean"], "fields": "", "values": false },
@@ -158,6 +191,70 @@
           "format": 0,
           "queryType": "timeseries",
           "rawSql": "SELECT $__timeInterval(timestamp) AS time, countIf(status IN ('passed', 'skipped')) / count() * 100 AS pass_rate FROM default.${table} WHERE $__timeFilter(timestamp) AND (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote})) AND (${story:singlequote} = 'all' OR has(allure_labels['story'], ${story:singlequote})) GROUP BY time ORDER BY time"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Median run duration",
+      "gridPos": { "x": 6, "y": 4, "w": 3, "h": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 1,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 60 }, { "color": "red", "value": 300 }] }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT quantileExact(0.5)(duration_s) AS median_s FROM (SELECT (max(finished_at) - min(started_at)) / 1000.0 AS duration_s FROM default.${table} WHERE $__timeFilter(timestamp) AND (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote})) AND (${story:singlequote} = 'all' OR has(allure_labels['story'], ${story:singlequote})) GROUP BY run_id)"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "P90 run duration",
+      "gridPos": { "x": 9, "y": 4, "w": 3, "h": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 1,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 60 }, { "color": "red", "value": 300 }] }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT quantileExact(0.9)(duration_s) AS p90_s FROM (SELECT (max(finished_at) - min(started_at)) / 1000.0 AS duration_s FROM default.${table} WHERE $__timeFilter(timestamp) AND (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote})) AND (${story:singlequote} = 'all' OR has(allure_labels['story'], ${story:singlequote})) GROUP BY run_id)"
         }
       ]
     },
@@ -243,6 +340,10 @@
             "properties": [{ "id": "unit", "value": "dateTimeAsIso" }]
           },
           {
+            "matcher": { "id": "byName", "options": "duration_s" },
+            "properties": [{ "id": "unit", "value": "s" }, { "id": "decimals", "value": 1 }]
+          },
+          {
             "matcher": { "id": "byName", "options": "failed" },
             "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }, { "id": "custom.cellOptions", "value": { "type": "color-text" } }]
           },
@@ -259,7 +360,7 @@
           "editorType": "sql",
           "format": 1,
           "queryType": "table",
-          "rawSql": "SELECT any(timestamp) AS time, if(ci_provider = 'local' OR ci_run_id = '', 'local', concat(ci_provider, ' #', ci_run_id)) AS pipeline, if(git_branch = '', '—', git_branch) AS branch, substring(git_commit, 1, 8) AS commit, count() AS total, countIf(status = 'passed') AS passed, countIf(status = 'failed') AS failed, countIf(status = 'broken') AS broken, countIf(status = 'skipped') AS skipped, countIf(status IN ('passed', 'skipped')) / count() * 100 AS pass_rate_pct FROM default.${table} WHERE $__timeFilter(timestamp) AND (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote})) AND (${story:singlequote} = 'all' OR has(allure_labels['story'], ${story:singlequote})) GROUP BY run_id, ci_provider, ci_run_id, git_branch, git_commit ORDER BY time DESC LIMIT 50"
+          "rawSql": "SELECT any(timestamp) AS time, if(ci_provider = 'local' OR ci_run_id = '', 'local', concat(ci_provider, ' #', ci_run_id)) AS pipeline, if(git_branch = '', '—', git_branch) AS branch, substring(git_commit, 1, 8) AS commit, count() AS total, countIf(status = 'passed') AS passed, countIf(status = 'failed') AS failed, countIf(status = 'broken') AS broken, countIf(status = 'skipped') AS skipped, countIf(status IN ('passed', 'skipped')) / count() * 100 AS pass_rate_pct, (max(finished_at) - min(started_at)) / 1000.0 AS duration_s FROM default.${table} WHERE $__timeFilter(timestamp) AND (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote})) AND (${story:singlequote} = 'all' OR has(allure_labels['story'], ${story:singlequote})) GROUP BY run_id, ci_provider, ci_run_id, git_branch, git_commit ORDER BY time DESC LIMIT 50"
         }
       ]
     },
