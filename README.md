@@ -1,29 +1,37 @@
 # pytest-test-observer
 
+[![PyPI - Version](https://img.shields.io/pypi/v/pytest-test-observer.svg?logo=pypi&logoColor=white)](https://pypi.org/project/pytest-test-observer/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pytest-test-observer.svg?logo=python&logoColor=white)](https://pypi.org/project/pytest-test-observer/)
+[![CI](https://github.com/shakhov-dmitrii/pytest-test-observer/actions/workflows/ci.yml/badge.svg)](https://github.com/shakhov-dmitrii/pytest-test-observer/actions/workflows/ci.yml)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/pytest-test-observer)](https://pypistats.org/packages/pytest-test-observer)
+
 An easy-to-use pytest plugin to take your test observability to the next level. Compatible with `allure-pytest`.
 
 ![alt text](image.png)
 
 ## Install
 
-### PyPI
-
 ```bash
-pip install pytest-test-observer==0.1.0
+pip install pytest-test-observer
+# or: uv add pytest-test-observer
 ```
 
-### From sources
+For Allure support, install the `allure` extra:
 
 ```bash
-uv add --editable git+https://github.com/shakhov-dmitrii/pytest-test-observer
-# or for development inside a clone:
-uv sync
+pip install "pytest-test-observer[allure]"
+# or: uv add "pytest-test-observer[allure]"
 ```
 
-For Allure support, install the extra:
+### From source
 
 ```bash
-uv add "pytest-test-observer[allure]"
+# add the git version as a dependency
+uv add git+https://github.com/shakhov-dmitrii/pytest-test-observer
+
+# or develop inside a clone
+git clone https://github.com/shakhov-dmitrii/pytest-test-observer
+cd pytest-test-observer && uv sync
 ```
 
 ## Quick start
