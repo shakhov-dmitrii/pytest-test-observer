@@ -3,7 +3,6 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/pytest-test-observer.svg?logo=pypi&logoColor=white)](https://pypi.org/project/pytest-test-observer/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pytest-test-observer.svg?logo=python&logoColor=white)](https://pypi.org/project/pytest-test-observer/)
 [![CI](https://github.com/shakhov-dmitrii/pytest-test-observer/actions/workflows/ci.yml/badge.svg)](https://github.com/shakhov-dmitrii/pytest-test-observer/actions/workflows/ci.yml)
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/pytest-test-observer)](https://pypistats.org/packages/pytest-test-observer)
 
 An easy-to-use pytest plugin to take your test observability to the next level. Compatible with `allure-pytest`.
 
