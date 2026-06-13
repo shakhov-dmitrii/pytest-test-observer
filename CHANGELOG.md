@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-06-13
+
+### Added
+
+- Custom events: record diagnostic key/value events from a test with the new `record_event` fixture, written to a companion `{ch_table}_events` table, buffered to disk on failure and replayable like result rows. Off by default — enable with `--custom-events=true` (or env / `pyproject.toml`)
+- "Events for this test" panel on the test-detail Grafana dashboard
+- "Cross-run flaky tests" panel on the overview dashboard
+- `unknown` test status surfaced in the dashboard status breakdowns
+
+### Changed
+
+- Replay type-matching is now whitespace-robust and raises on an unregistered column type instead of silently backfilling an empty string
+- Reworked the README install instructions (unpinned, `pip` and `uv` shown together) and added a Custom events section
+- Slimmed the custom-events example to a few deterministic cases
+
+### Fixed
+
+- Schema migration no longer treats `String` vs `LowCardinality(String)` / `Nullable(...)` as incompatible — these are insert-compatible in ClickHouse, and the old behavior aborted every flush against such tables
+- Overview run-duration stats (median / p90 / pipeline) no longer skewed by rows with a missing start time
+
+### Security
+
+- `ch_table` is validated as a plain SQL identifier before interpolation into `CREATE` / `ALTER` DDL
+
 ## [0.1.1] - 2026-05-23
 
 ### Added
