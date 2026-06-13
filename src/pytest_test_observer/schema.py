@@ -34,16 +34,35 @@ def column_defs_sql() -> str:
     return ",\n    ".join(f"{name} {type_}" for name, type_ in SCHEMA)
 
 
+CREATE_TABLE_SQL = (
+    "CREATE TABLE IF NOT EXISTS {table} (\n    "
+    + column_defs_sql()
+    + "\n) ENGINE = MergeTree\nORDER BY (nodeid, timestamp)\nPARTITION BY toYYYYMM(timestamp)"
+)
+
+
 class SchemaError(Exception):
     """Raised when the ClickHouse table can't be safely migrated."""
 
 
-def ensure_schema(client, table: str, *, auto_migrate: bool) -> list:
+_SAFE_IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def validate_table_name(table: str) -> str:
+    """Reject table names that aren't plain SQL identifiers."""
+    if not _SAFE_IDENT_RE.match(table or ""):
+        raise SchemaError(f"invalid ch_table {table!r}: must match [A-Za-z_][A-Za-z0-9_]*")
+    return table
+
+
+def ensure_schema(client, table: str, *, auto_migrate: bool, expected: dict | None = None) -> list:
+    if expected is None:
+        expected = EXPECTED_SCHEMA
     actual = _read_actual_columns(client, table)
 
     type_mismatches = [
         (name, actual[name], expected_type)
-        for name, expected_type in EXPECTED_SCHEMA.items()
+        for name, expected_type in expected.items()
         if name in actual and not _types_compatible(actual[name], expected_type)
     ]
     if type_mismatches:
@@ -54,7 +73,7 @@ def ensure_schema(client, table: str, *, auto_migrate: bool) -> list:
             "(loses history) or ALTER TABLE MODIFY COLUMN with appropriate care."
         )
 
-    missing = [(name, type_) for name, type_ in EXPECTED_SCHEMA.items() if name not in actual]
+    missing = [(name, type_) for name, type_ in expected.items() if name not in actual]
     if not missing:
         return []
 
@@ -80,7 +99,7 @@ def _read_actual_columns(client, table: str) -> dict:
 
 
 def _types_compatible(actual: str, expected: str) -> bool:
-    return _normalize(actual) == _normalize(expected)
+    return _strip_compat_wrappers(actual) == _strip_compat_wrappers(expected)
 
 
 _WS_RE = re.compile(r"\s+")
@@ -88,3 +107,47 @@ _WS_RE = re.compile(r"\s+")
 
 def _normalize(t: str) -> str:
     return _WS_RE.sub("", t)
+
+
+_WRAPPER_RE = re.compile(r"^(?:LowCardinality|Nullable)\((.*)\)$")
+
+
+def _strip_compat_wrappers(t: str) -> str:
+    t = _normalize(t)
+    while (m := _WRAPPER_RE.match(t)) is not None:
+        t = m.group(1)
+    return t
+
+
+_DEFAULT_FOR_TYPE: dict = {
+    "String": "",
+    "DateTime64(3)": "1970-01-01 00:00:00.000",
+    "UInt64": 0,
+    "UInt32": 0,
+    "Float64": 0.0,
+    "LowCardinality(String)": "",
+    "Array(String)": [],
+    "Map(String, Array(String))": {},
+    "Map(String, String)": {},
+    "Array(Tuple(String, String, String))": [],
+}
+
+_DEFAULT_FOR_TYPE_NORM: dict = {_normalize(t): v for t, v in _DEFAULT_FOR_TYPE.items()}
+
+
+def default_for_type(type_: str):
+    try:
+        return _DEFAULT_FOR_TYPE_NORM[_normalize(type_)]
+    except KeyError:
+        raise SchemaError(
+            f"No replay default registered for ClickHouse type {type_!r}; "
+            f"add it to _DEFAULT_FOR_TYPE in schema.py"
+        ) from None
+
+
+def column_defaults(schema) -> dict:
+    """Map of column name -> backfill default for every column in a schema."""
+    return {name: default_for_type(type_) for name, type_ in schema}
+
+
+COLUMN_DEFAULTS: dict = column_defaults(SCHEMA)

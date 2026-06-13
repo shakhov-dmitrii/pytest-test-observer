@@ -9,6 +9,7 @@ from pytest_test_observer.schema import (
     SchemaError,
     column_defs_sql,
     ensure_schema,
+    validate_table_name,
 )
 
 
@@ -84,14 +85,37 @@ def test_ensure_schema_refuses_when_auto_migrate_disabled():
 
 def test_ensure_schema_raises_on_type_mismatch_regardless_of_flag():
     actual = dict(EXPECTED_SCHEMA)
-    actual["status"] = "String"
+    actual["duration"] = "String"
     client = FakeClient(actual)
 
     with pytest.raises(SchemaError) as exc:
         ensure_schema(client, "t", auto_migrate=True)
     assert "incompatible" in str(exc.value).lower()
-    assert "status" in str(exc.value)
+    assert "duration" in str(exc.value)
     assert client.commands == []
+
+
+def test_ensure_schema_treats_lowcardinality_as_compatible_with_string():
+    actual = dict(EXPECTED_SCHEMA)
+    actual["status"] = "String"
+    actual["worker_id"] = "Nullable(String)"
+    client = FakeClient(actual)
+
+    added = ensure_schema(client, "t", auto_migrate=False)
+    assert added == []
+    assert client.commands == []
+
+
+def test_validate_table_name_accepts_plain_identifiers():
+    for name in ("pytest_results", "t", "_x", "Results123"):
+        assert validate_table_name(name) == name
+
+
+def test_validate_table_name_rejects_unsafe_identifiers():
+    for bad in ("my-results", "db.tbl", "a b", "drop table x;--", "", "1abc"):
+        with pytest.raises(SchemaError) as exc:
+            validate_table_name(bad)
+        assert "ch_table" in str(exc.value)
 
 
 def test_ensure_schema_ignores_extra_columns():
@@ -105,7 +129,6 @@ def test_ensure_schema_ignores_extra_columns():
 
 
 def test_ensure_schema_ignores_whitespace_differences_in_types():
-    # ClickHouse may return types with slightly different spacing.
     actual = {
         "run_id": "String",
         "allure_labels": "Map(String,Array(String))",

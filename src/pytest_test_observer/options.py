@@ -18,6 +18,7 @@ OPTION_SPECS: tuple[tuple[str, str, str, str | None], ...] = (
     ("--ch-table", "ch_table", "PYTEST_OBSERVER_CH_TABLE", "pytest_results"),
     ("--ch-send-from", "ch_send_from", "PYTEST_OBSERVER_CH_SEND_FROM", "any"),
     ("--ch-auto-migrate", "ch_auto_migrate", "PYTEST_OBSERVER_CH_AUTO_MIGRATE", "true"),
+    ("--custom-events", "custom_events", "PYTEST_OBSERVER_CUSTOM_EVENTS", "false"),
 )
 
 _HELP: dict[str, str] = {
@@ -28,6 +29,7 @@ _HELP: dict[str, str] = {
     "ch_table": "ClickHouse table name.",
     "ch_send_from": "When to send: 'any' (default: local + CI) or 'ci' (skip when no CI env detected).",
     "ch_auto_migrate": "Auto-add missing columns via ALTER TABLE when the schema drifts forward. true/false (default true).",
+    "custom_events": "Enable the record_event fixture and flush events to {table}_events. true/false (default false).",
 }
 
 
@@ -60,7 +62,7 @@ def _resolve_one(
     if cli_value is not None:
         return cli_value
     env_value = os.environ.get(env)
-    if env_value is not None:
+    if env_value:
         return env_value
     ini_value = config.getini(ini)
     if ini_value:

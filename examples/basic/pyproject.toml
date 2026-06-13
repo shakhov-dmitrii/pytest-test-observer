@@ -36,6 +36,9 @@ ch_table = "example_results"
 # run and buffer rows to JSONL until you apply it manually.
 # ch_auto_migrate = false
 
+custom_events = true
+
 # Override per-environment via env vars:
 #   PYTEST_OBSERVER_CH_URL=clickhouse.internal:8123
 #   PYTEST_OBSERVER_CH_PASSWORD=$(get-secret clickhouse-password)
+#   PYTEST_OBSERVER_CUSTOM_EVENTS=false

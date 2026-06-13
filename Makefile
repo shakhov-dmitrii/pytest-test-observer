@@ -32,7 +32,11 @@ smoke: ## Run the test suite against the local ClickHouse
 	$(UV) run pytest tests/ --ch-url=localhost:8123 --ch-table=smoke --ch-password="$(CH_PASSWORD)" -v
 	docker exec pytest-test-observer-clickhouse clickhouse-client \
 	  --password "$(CH_PASSWORD)" \
-	  -q "SELECT nodeid, status, ci_provider, ci_run_id, git_branch,  FROM default.smoke ORDER BY started_at LIMIT 10 FORMAT PrettyCompact"
+	  -q "SELECT nodeid, status, ci_provider, ci_run_id, git_branch FROM default.smoke ORDER BY started_at LIMIT 10 FORMAT PrettyCompact"
+	docker exec pytest-test-observer-clickhouse clickhouse-client \
+	  --password "$(CH_PASSWORD)" \
+	  -q "SELECT run_id, nodeid, seq, event_name, payload FROM default.smoke_events ORDER BY nodeid, seq LIMIT 10 FORMAT PrettyCompact" \
+	  2>/dev/null || echo "(smoke_events not yet created — no test in this session called record_event)"
 
 example:
 	cd examples/basic && $(UV) sync && ($(UV) run pytest -v || true)

@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import pytest
 
 from pytest_test_observer import buffer
+from pytest_test_observer.constants import EVENTS_SUFFIX
 
 # Apply the `xdg_cache_home` fixture (defined in conftest.py) to every test in this file.
 pytestmark = pytest.mark.usefixtures("xdg_cache_home")
@@ -87,6 +88,22 @@ def test_write_jsonl_empty_rows_does_not_create_file():
     path = buffer.write_jsonl([], "empty-run")
     assert path.parent.exists()
     assert not path.exists()
+
+
+def test_write_events_jsonl_uses_events_suffix():
+    path = buffer.write_jsonl([{"k": 1}], "run-42", suffix=EVENTS_SUFFIX)
+    assert path.name == "run-42_events.jsonl"
+    assert path.exists()
+
+
+def test_write_jsonl_sanitizes_run_id_ending_in_events_marker():
+    results = buffer.write_jsonl([{"k": 1}], "my_events")
+    events = buffer.write_jsonl([{"k": 2}], "my_events", suffix=EVENTS_SUFFIX)
+
+    assert results.name == "my_events_.jsonl"
+    assert events.name == "my_events__events.jsonl"
+    assert not results.stem.endswith("_events")
+    assert events.stem.endswith("_events")
 
 
 def test_json_default_raises_on_unsupported_type():

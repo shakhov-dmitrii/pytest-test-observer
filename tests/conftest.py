@@ -6,6 +6,8 @@ import pytest
 
 from pytest_test_observer import context
 from pytest_test_observer import reporter as reporter_module
+from pytest_test_observer.events import EVENTS_SCHEMA
+from pytest_test_observer.schema import EXPECTED_SCHEMA
 
 pytest_plugins = ["pytester"]
 
@@ -66,21 +68,29 @@ class FakeClient:
     def __init__(self):
         self.commands: list = []
         self.inserts: list = []
-        from pytest_test_observer.schema import EXPECTED_SCHEMA
-
         self._columns: dict = dict(EXPECTED_SCHEMA)
+        self._events_columns: dict = dict(EVENTS_SCHEMA)
 
     def command(self, sql):
         self.commands.append(sql)
         if "ADD COLUMN IF NOT EXISTS" in sql:
+            # ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {name} {type_}
+            parts = sql.split(None, 3)  # ["ALTER", "TABLE", table, rest...]
+            table_name = parts[2] if len(parts) >= 3 else ""
             tail = sql.split("ADD COLUMN IF NOT EXISTS", 1)[1].strip()
             name, type_ = tail.split(maxsplit=1)
-            self._columns[name] = type_
+            if table_name.endswith("_events"):
+                self._events_columns[name] = type_
+            else:
+                self._columns[name] = type_
 
     def insert(self, table, data, column_names):
         self.inserts.append((table, data, list(column_names)))
 
     def query(self, sql, parameters=None):
+        table = (parameters or {}).get("table", "")
+        if table.endswith("_events"):
+            return _SchemaQueryResult(list(self._events_columns.items()))
         return _SchemaQueryResult(list(self._columns.items()))
 
 

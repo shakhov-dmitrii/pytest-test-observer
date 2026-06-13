@@ -70,3 +70,12 @@ def test_str_passes_plain_strings_through():
 def test_str_stringifies_arbitrary_objects():
     assert as_str(42) == "42"
     assert as_str(None) == "None"
+
+
+def test_version_matches_package_metadata():
+    """Guards against the __init__.py constant drifting from pyproject.toml."""
+    from importlib.metadata import version
+
+    import pytest_test_observer
+
+    assert pytest_test_observer.__version__ == version("pytest-test-observer")

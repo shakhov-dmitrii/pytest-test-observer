@@ -3,7 +3,8 @@ from __future__ import annotations
 import pytest
 
 from pytest_test_observer import replay
-from pytest_test_observer.schema import COLUMNS
+from pytest_test_observer.events import EVENTS_COLUMN_DEFAULTS, EVENTS_COLUMNS
+from pytest_test_observer.schema import COLUMN_DEFAULTS, COLUMNS
 
 # All replay tests want XDG_CACHE_HOME pinned to tmp_path.
 pytestmark = pytest.mark.usefixtures("xdg_cache_home")
@@ -11,7 +12,7 @@ pytestmark = pytest.mark.usefixtures("xdg_cache_home")
 
 def test_parse_jsonl_text_round_trips_rows():
     text = '{"run_id": "r1", "nodeid": "t1"}\n{"run_id": "r1", "nodeid": "t2"}\n'
-    rows, skipped = replay.parse_jsonl_text(text)
+    rows, skipped = replay.parse_jsonl_text(text, COLUMN_DEFAULTS)
     assert skipped == 0
     assert len(rows) == 2
     assert rows[0]["nodeid"] == "t1"
@@ -20,7 +21,7 @@ def test_parse_jsonl_text_round_trips_rows():
 
 def test_parse_jsonl_text_fills_missing_columns_with_defaults():
     text = '{"nodeid": "old-style-row"}\n'
-    rows, _ = replay.parse_jsonl_text(text)
+    rows, _ = replay.parse_jsonl_text(text, COLUMN_DEFAULTS)
     assert len(rows) == 1
     row = rows[0]
     for col in COLUMNS:
@@ -33,7 +34,7 @@ def test_parse_jsonl_text_fills_missing_columns_with_defaults():
 
 def test_parse_jsonl_text_skips_malformed_lines(recwarn):
     text = '{"nodeid": "good"}\nnot json at all\n\n{"nodeid": "also-good"}\n'
-    rows, skipped = replay.parse_jsonl_text(text)
+    rows, skipped = replay.parse_jsonl_text(text, COLUMN_DEFAULTS)
     assert len(rows) == 2
     assert skipped == 1
     assert any("not valid JSON" in str(w.message) for w in recwarn)
@@ -41,7 +42,7 @@ def test_parse_jsonl_text_skips_malformed_lines(recwarn):
 
 def test_parse_jsonl_text_skips_non_object_top_level(recwarn):
     text = '[1, 2, 3]\n{"nodeid": "ok"}\n'
-    rows, skipped = replay.parse_jsonl_text(text)
+    rows, skipped = replay.parse_jsonl_text(text, COLUMN_DEFAULTS)
     assert len(rows) == 1
     assert skipped == 1
     assert any("not a JSON object" in str(w.message) for w in recwarn)
@@ -84,9 +85,14 @@ class _SuccessfulReporter:
     def __init__(self, ok: bool = True):
         self.ok = ok
         self.calls: list = []
+        self.event_calls: list = []
 
-    def flush(self, rows, run_id):
-        self.calls.append((list(rows), run_id))
+    def flush(self, rows, run_id, *, buffer_on_failure=True):
+        self.calls.append((list(rows), run_id, buffer_on_failure))
+        return self.ok
+
+    def flush_events(self, rows, run_id, *, buffer_on_failure=True):
+        self.event_calls.append((list(rows), run_id, buffer_on_failure))
         return self.ok
 
 
@@ -102,8 +108,9 @@ def test_replay_file_deletes_buffer_on_successful_flush(tmp_path):
     assert ok is True
     assert not f.exists()
     assert len(reporter.calls) == 1
-    flushed_rows, run_id = reporter.calls[0]
+    flushed_rows, run_id, buffer_on_failure = reporter.calls[0]
     assert run_id == "run-1"
+    assert buffer_on_failure is False
     assert {r["nodeid"] for r in flushed_rows} == {"t1", "t2"}
 
 
@@ -126,7 +133,21 @@ def test_replay_file_returns_false_when_flush_fails(tmp_path):
     rows, _, ok = replay.replay_file(reporter, f, keep=False)
     assert rows == 1
     assert ok is False
-    assert not f.exists()
+    assert f.exists()
+
+
+def test_replay_passes_buffer_on_failure_false_to_reporter(tmp_path):
+    f = tmp_path / "run-1.jsonl"
+    f.write_text('{"nodeid": "t"}\n')
+    events_f = tmp_path / "run-2_events.jsonl"
+    events_f.write_text('{"event_name": "e"}\n')
+
+    reporter = _SuccessfulReporter(ok=False)
+    replay.replay_file(reporter, f, keep=True)
+    replay.replay_file(reporter, events_f, keep=True)
+
+    assert reporter.calls[0][2] is False  # buffer_on_failure
+    assert reporter.event_calls[0][2] is False
 
 
 def test_replay_file_empty_returns_no_op(tmp_path):
@@ -208,3 +229,87 @@ def test_main_returns_one_when_a_file_fails(tmp_path, capsys, monkeypatch):
     assert rc == 1
     assert "FAILED" in out
     assert "1 files failed" in out
+
+
+def test_parse_jsonl_events_text_fills_missing_columns_with_defaults():
+    text = '{"event_name": "cache_miss"}\n'
+    rows, skipped = replay.parse_jsonl_text(text, EVENTS_COLUMN_DEFAULTS)
+    assert skipped == 0
+    assert len(rows) == 1
+    row = rows[0]
+    for col in EVENTS_COLUMNS:
+        assert col in row, f"missing default for column {col!r}"
+    assert row["seq"] == 0
+    assert row["payload"] == {}
+    assert row["run_id"] == ""
+
+
+def test_replay_file_routes_events_file_to_flush_events(tmp_path):
+    f = tmp_path / "run-1_events.jsonl"
+    f.write_text('{"event_name": "hit", "payload": {"k": "v"}}\n')
+    reporter = _SuccessfulReporter(ok=True)
+
+    rows, skipped, ok = replay.replay_file(reporter, f, keep=False)
+
+    assert rows == 1
+    assert skipped == 0
+    assert ok is True
+    assert not f.exists()
+    assert reporter.event_calls == [
+        (
+            [
+                {
+                    "event_name": "hit",
+                    "payload": {"k": "v"},
+                    **{
+                        c: replay.EVENTS_COLUMN_DEFAULTS[c]
+                        for c in replay.EVENTS_COLUMN_DEFAULTS
+                        if c not in ("event_name", "payload")
+                    },
+                }
+            ],
+            "run-1",
+            False,
+        )
+    ]
+    assert reporter.calls == []
+
+
+def test_replay_file_results_file_does_not_call_flush_events(tmp_path):
+    f = tmp_path / "run-1.jsonl"
+    f.write_text('{"nodeid": "t"}\n')
+    reporter = _SuccessfulReporter(ok=True)
+
+    replay.replay_file(reporter, f, keep=False)
+
+    assert reporter.calls != []
+    assert reporter.event_calls == []
+
+
+def test_replay_file_events_extracts_run_id_correctly(tmp_path):
+    f = tmp_path / "abc-123_events.jsonl"
+    f.write_text('{"event_name": "e"}\n')
+    reporter = _SuccessfulReporter(ok=True)
+
+    replay.replay_file(reporter, f, keep=False)
+
+    _, run_id, _ = reporter.event_calls[0]
+    assert run_id == "abc-123"
+
+
+def test_main_replays_events_and_results_separately(tmp_path, capsys, monkeypatch):
+    buf = tmp_path / "pytest-test-observer"
+    buf.mkdir()
+    (buf / "run-1.jsonl").write_text('{"nodeid": "t"}\n')
+    (buf / "run-1_events.jsonl").write_text('{"event_name": "hit"}\n')
+
+    reporter = _SuccessfulReporter(ok=True)
+    monkeypatch.setattr(replay, "ClickHouseReporter", lambda **kw: reporter)
+
+    rc = replay.main(["--ch-url=localhost:8123"])
+    out = capsys.readouterr().out
+
+    assert rc == 0
+    assert len(reporter.calls) == 1
+    assert len(reporter.event_calls) == 1
+    assert "2 files" in out

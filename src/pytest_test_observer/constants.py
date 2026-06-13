@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import Enum
 
 from pytest_test_observer.models import _CIProvider
@@ -55,3 +57,6 @@ SEVERITY_LABEL = "severity"
 ID_LABEL = "as_id"  # LabelType.ID resolves to "as_id" in allure-python-commons
 
 DISPLAY_NAME_ATTR = "__allure_display_name__"
+
+
+EVENTS_SUFFIX = "_events"
