@@ -55,5 +55,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Grafana overview dashboard
 - `pytest11` entry point registration
 
+[0.2.0]: https://github.com/shakhov-dmitrii/pytest-test-observer/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/shakhov-dmitrii/pytest-test-observer/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/shakhov-dmitrii/pytest-test-observer/releases/tag/v0.1.0
