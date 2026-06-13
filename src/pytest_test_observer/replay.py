@@ -4,8 +4,8 @@ When a session-end flush fails (network down, CH unreachable, timeout, etc.),
 each session's rows are written to
 ``$XDG_CACHE_HOME/pytest-test-observer/<run_id>.jsonl``. This tool reads those
 files, parses each line, and pushes the rows to ClickHouse. On success the
-buffer file is deleted; on failure it's recreated by the reporter's fallback
-path so a later replay can pick up where this one left off.
+buffer file is deleted; on failure it is left in place so a later replay can
+retry it.
 
 Invocation:
 
@@ -32,26 +32,14 @@ import warnings
 from pathlib import Path
 
 from pytest_test_observer.buffer import buffer_dir
+from pytest_test_observer.constants import EVENTS_SUFFIX
+from pytest_test_observer.events import EVENTS_COLUMN_DEFAULTS
 from pytest_test_observer.helper import as_bool
 from pytest_test_observer.reporter import ClickHouseReporter
-from pytest_test_observer.schema import SCHEMA
-
-_DEFAULT_FOR_TYPE: dict = {
-    "String": "",
-    "DateTime64(3)": "",  # ISO string accepted by clickhouse-connect
-    "UInt64": 0,
-    "Float64": 0.0,
-    "LowCardinality(String)": "",
-    "Array(String)": [],
-    "Map(String, Array(String))": {},
-    "Array(Tuple(String, String, String))": [],
-}
-
-# Pre-compute per-column defaults so the inner loop is cheap.
-_COLUMN_DEFAULTS: dict = {name: _DEFAULT_FOR_TYPE.get(type_, "") for name, type_ in SCHEMA}
+from pytest_test_observer.schema import COLUMN_DEFAULTS
 
 
-def parse_jsonl_text(text: str) -> tuple[list, int]:
+def parse_jsonl_text(text: str, defaults: dict) -> tuple[list, int]:
     rows: list = []
     skipped = 0
     for line_num, line in enumerate(text.splitlines(), 1):
@@ -63,31 +51,46 @@ def parse_jsonl_text(text: str) -> tuple[list, int]:
         except json.JSONDecodeError as exc:
             warnings.warn(
                 f"[replay] line {line_num}: not valid JSON ({exc}); skipping",
-                stacklevel=2,
+                stacklevel=4,
             )
             skipped += 1
             continue
         if not isinstance(row, dict):
             warnings.warn(
                 f"[replay] line {line_num}: not a JSON object; skipping",
-                stacklevel=2,
+                stacklevel=4,
             )
             skipped += 1
             continue
-        for col, default in _COLUMN_DEFAULTS.items():
-            row.setdefault(col, default)
+        for col, default in defaults.items():
+            if col not in row:
+                # Copy mutable defaults so rows don't share the same list/dict object.
+                row[col] = type(default)() if isinstance(default, (list, dict)) else default
         rows.append(row)
     return rows, skipped
 
 
+def _is_events_file(path: Path) -> bool:
+    return path.stem.endswith(EVENTS_SUFFIX)
+
+
 def replay_file(reporter: ClickHouseReporter, path: Path, *, keep: bool) -> tuple[int, int, bool]:
     text = path.read_text(encoding="utf-8")
-    rows, skipped = parse_jsonl_text(text)
-    if not rows:
-        return 0, skipped, True
-    if not keep:
+    if _is_events_file(path):
+        rows, skipped = parse_jsonl_text(text, EVENTS_COLUMN_DEFAULTS)
+        if not rows:
+            return 0, skipped, True
+        run_id = path.stem[: -len(EVENTS_SUFFIX)]
+        # buffer_on_failure=False prevents the reporter from re-appending to
+        # the same file we're reading from (would silently double its size).
+        ok = reporter.flush_events(rows, run_id, buffer_on_failure=False)
+    else:
+        rows, skipped = parse_jsonl_text(text, COLUMN_DEFAULTS)
+        if not rows:
+            return 0, skipped, True
+        ok = reporter.flush(rows, path.stem, buffer_on_failure=False)
+    if ok and not keep:
         path.unlink()
-    ok = reporter.flush(rows, path.stem)
     return len(rows), skipped, ok
 
 
@@ -185,7 +188,7 @@ def main(argv: list | None = None) -> int:
         rows, skipped, ok = replay_file(reporter, f, keep=args.keep)
         rows_total += rows
         skipped_total += skipped
-        status = "ok" if ok else "FAILED (re-buffered)"
+        status = "ok" if ok else "FAILED"
         print(f"  {f}: {rows} rows, {skipped} skipped — {status}")
         if not ok:
             failures.append(f)

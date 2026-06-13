@@ -9,6 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from pytest_test_observer.constants import EVENTS_SUFFIX
+
 _BUFFER_SUBDIR = "pytest-test-observer"
 _EXTENSION = ".jsonl"
 
@@ -26,9 +28,9 @@ def buffer_dir() -> Path:
     return root / _BUFFER_SUBDIR
 
 
-def write_jsonl(rows: list[dict], run_id: str) -> Path:
+def write_jsonl(rows: list[dict], run_id: str, *, suffix: str = "") -> Path:
     safe_id = _sanitize_run_id(run_id)
-    path = buffer_dir() / f"{safe_id}{_EXTENSION}"
+    path = buffer_dir() / f"{safe_id}{suffix}{_EXTENSION}"
     path.parent.mkdir(parents=True, exist_ok=True)
     if not rows:
         return path
@@ -40,6 +42,8 @@ def write_jsonl(rows: list[dict], run_id: str) -> Path:
 
 def _sanitize_run_id(run_id: str) -> str:
     cleaned = _UNSAFE_CHARS.sub("_", run_id or "")[:_MAX_RUN_ID]
+    if cleaned.endswith(EVENTS_SUFFIX):
+        cleaned += "_"
     return cleaned or "unknown"
 
 

@@ -349,7 +349,7 @@ wheels = [
 
 [[package]]
 name = "pytest-test-observer"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "../../" }
 dependencies = [
     { name = "clickhouse-connect" },
@@ -373,6 +373,7 @@ provides-extras = ["allure"]
 [package.metadata.requires-dev]
 dev = [
     { name = "allure-pytest", specifier = ">=2.13" },
+    { name = "pre-commit", specifier = ">=4.3.0" },
     { name = "pytest", specifier = ">=7.0" },
     { name = "pytest-asyncio", specifier = ">=0.23" },
     { name = "pytest-cov", specifier = ">=5.0" },

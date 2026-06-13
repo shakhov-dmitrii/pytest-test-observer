@@ -1,12 +1,19 @@
 {
   "uid": "pytest-test-observer-test-detail",
-  "title": "pytest-test-observer — Test detail",
-  "tags": ["pytest", "test-observer", "drill-down"],
+  "title": "pytest-test-observer \u2014 Test detail",
+  "tags": [
+    "pytest",
+    "test-observer",
+    "drill-down"
+  ],
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
   "refresh": "30s",
-  "time": { "from": "now-30d", "to": "now" },
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
   "links": [
     {
       "title": "Overview",
@@ -25,8 +32,11 @@
         "name": "table",
         "label": "Table",
         "type": "query",
-        "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
-        "query": "SELECT t.name FROM system.tables t INNER JOIN system.columns c ON t.database = c.database AND t.name = c.table WHERE t.database = 'default' AND c.name = 'nodeid' GROUP BY t.name ORDER BY t.name",
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "clickhouse-pytest-observer"
+        },
+        "query": "SELECT t.name FROM system.tables t INNER JOIN system.columns c ON t.database = c.database AND t.name = c.table WHERE t.database = 'default' AND c.name = 'nodeid' AND t.name NOT LIKE '%_events' GROUP BY t.name ORDER BY t.name",
         "refresh": 2,
         "sort": 1,
         "current": {}
@@ -36,29 +46,44 @@
         "label": "Allure feature",
         "description": "Narrows the Test dropdown to tests carrying @allure.feature(\"X\"). Pick 'all' to leave the Test list unfiltered. Tests with no allure feature label are hidden when a specific feature is selected.",
         "type": "query",
-        "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "clickhouse-pytest-observer"
+        },
         "query": "SELECT 'all' AS feature UNION ALL SELECT DISTINCT arrayJoin(allure_labels['feature']) AS feature FROM default.${table}",
         "refresh": 2,
         "sort": 1,
-        "current": { "value": "all", "text": "all" }
+        "current": {
+          "value": "all",
+          "text": "all"
+        }
       },
       {
         "name": "story",
         "label": "Allure story",
         "description": "Further narrows the Test dropdown by @allure.story. Auto-refreshes when the feature changes. Tests with no allure story label are hidden when a specific story is selected.",
         "type": "query",
-        "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "clickhouse-pytest-observer"
+        },
         "query": "SELECT 'all' AS story UNION ALL SELECT DISTINCT arrayJoin(allure_labels['story']) AS story FROM default.${table} WHERE (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote}))",
         "refresh": 2,
         "sort": 1,
-        "current": { "value": "all", "text": "all" }
+        "current": {
+          "value": "all",
+          "text": "all"
+        }
       },
       {
         "name": "nodeid",
         "label": "Test (nodeid)",
         "description": "Pick the test to drill into. The list is filtered by the Table / Feature / Story selectors above.",
         "type": "query",
-        "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "clickhouse-pytest-observer"
+        },
         "query": "SELECT DISTINCT nodeid FROM default.${table} WHERE (${feature:singlequote} = 'all' OR has(allure_labels['feature'], ${feature:singlequote})) AND (${story:singlequote} = 'all' OR has(allure_labels['story'], ${story:singlequote})) ORDER BY nodeid",
         "refresh": 2,
         "sort": 1,
@@ -71,14 +96,52 @@
       "id": 2,
       "type": "stat",
       "title": "Total recorded outcomes",
-      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
-      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "none", "textMode": "auto" },
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] } }, "overrides": [] },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-pytest-observer"
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-pytest-observer"
+          },
           "editorType": "sql",
           "format": 1,
           "queryType": "table",
@@ -90,14 +153,52 @@
       "id": 3,
       "type": "stat",
       "title": "Distinct runs",
-      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
-      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "none", "textMode": "auto" },
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "purple", "value": null }] } }, "overrides": [] },
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-pytest-observer"
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "purple",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-pytest-observer"
+          },
           "editorType": "sql",
           "format": 1,
           "queryType": "table",
@@ -109,14 +210,64 @@
       "id": 4,
       "type": "stat",
       "title": "Pass rate %",
-      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
-      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "none", "textMode": "auto" },
-      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "min": 0, "max": 100, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 90 }, { "color": "green", "value": 98 }] } }, "overrides": [] },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-pytest-observer"
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "min": 0,
+          "max": 100,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 90
+              },
+              {
+                "color": "green",
+                "value": 98
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-pytest-observer"
+          },
           "editorType": "sql",
           "format": 1,
           "queryType": "table",
@@ -128,14 +279,62 @@
       "id": 5,
       "type": "stat",
       "title": "p50 duration (passed)",
-      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
-      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "none", "textMode": "auto" },
-      "fieldConfig": { "defaults": { "unit": "s", "decimals": 3, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.5 }, { "color": "red", "value": 2 }] } }, "overrides": [] },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-pytest-observer"
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-pytest-observer"
+          },
           "editorType": "sql",
           "format": 1,
           "queryType": "table",
@@ -147,26 +346,131 @@
       "id": 6,
       "type": "barchart",
       "title": "Outcomes per run (stacked)",
-      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 9 },
-      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
-      "options": { "orientation": "auto", "showValue": "auto", "stacking": "normal", "groupWidth": 0.7, "barWidth": 0.97, "xField": "time", "xTickLabelRotation": -45, "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true, "calcs": ["sum"] }, "tooltip": { "mode": "multi" } },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-pytest-observer"
+      },
+      "options": {
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "normal",
+        "groupWidth": 0.7,
+        "barWidth": 0.97,
+        "xField": "time",
+        "xTickLabelRotation": -45,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "fieldConfig": {
-        "defaults": { "custom": { "axisLabel": "attempts" } },
+        "defaults": {
+          "custom": {
+            "axisLabel": "attempts"
+          }
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "passed" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
-          { "matcher": { "id": "byName", "options": "failed" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
-          { "matcher": { "id": "byName", "options": "broken" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] },
-          { "matcher": { "id": "byName", "options": "skipped" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "passed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "failed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "broken"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "skipped"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "unknown"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          }
         ]
       },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-pytest-observer"
+          },
           "editorType": "sql",
           "format": 1,
           "queryType": "table",
-          "rawSql": "SELECT min(timestamp) AS time, countIf(status='passed') AS passed, countIf(status='failed') AS failed, countIf(status='broken') AS broken, countIf(status='skipped') AS skipped FROM default.${table} WHERE nodeid = ${nodeid:singlequote} AND $__timeFilter(timestamp) GROUP BY run_id ORDER BY time"
+          "rawSql": "SELECT min(timestamp) AS time, countIf(status='passed') AS passed, countIf(status='failed') AS failed, countIf(status='broken') AS broken, countIf(status='skipped') AS skipped, countIf(status='unknown') AS unknown FROM default.${table} WHERE nodeid = ${nodeid:singlequote} AND $__timeFilter(timestamp) GROUP BY run_id ORDER BY time"
         }
       ]
     },
@@ -174,17 +478,50 @@
       "id": 7,
       "type": "timeseries",
       "title": "Duration over time (passed runs)",
-      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 9 },
-      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-pytest-observer"
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
       "fieldConfig": {
-        "defaults": { "unit": "s", "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 10, "showPoints": "auto", "pointSize": 5, "spanNulls": true, "axisPlacement": "auto" } },
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "spanNulls": true,
+            "axisPlacement": "auto"
+          }
+        },
         "overrides": []
       },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-pytest-observer"
+          },
           "editorType": "sql",
           "format": 0,
           "queryType": "timeseries",
@@ -196,30 +533,385 @@
       "id": 8,
       "type": "table",
       "title": "Recent runs (most recent first)",
-      "gridPos": { "x": 0, "y": 13, "w": 24, "h": 11 },
-      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
-      "options": { "showHeader": true, "footer": { "show": false, "reducer": ["sum"], "fields": "" } },
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 24,
+        "h": 11
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-pytest-observer"
+      },
+      "options": {
+        "showHeader": true,
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
       "fieldConfig": {
-        "defaults": { "custom": { "align": "auto" } },
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "time" }, "properties": [{ "id": "unit", "value": "dateTimeAsIso" }] },
-          { "matcher": { "id": "byName", "options": "duration" }, "properties": [{ "id": "unit", "value": "s" }, { "id": "decimals", "value": 4 }] },
-          { "matcher": { "id": "byName", "options": "status" }, "properties": [
-            { "id": "custom.cellOptions", "value": { "type": "color-text" } },
-            { "id": "mappings", "value": [
-              { "type": "value", "options": { "passed": { "color": "green", "index": 0 }, "failed": { "color": "red", "index": 1 }, "broken": { "color": "orange", "index": 2 }, "skipped": { "color": "blue", "index": 3 } } }
-            ]}
-          ]}
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "time"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeAsIso"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "duration"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 4
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "status"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "passed": {
+                        "color": "green",
+                        "index": 0
+                      },
+                      "failed": {
+                        "color": "red",
+                        "index": 1
+                      },
+                      "broken": {
+                        "color": "orange",
+                        "index": 2
+                      },
+                      "skipped": {
+                        "color": "blue",
+                        "index": 3
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
         ]
       },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "clickhouse-pytest-observer" },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-pytest-observer"
+          },
           "editorType": "sql",
           "format": 1,
           "queryType": "table",
-          "rawSql": "SELECT timestamp AS time, status, when_phase, duration, if(ci_provider = 'local' OR ci_run_id = '', 'local', concat(ci_provider, ' #', ci_run_id)) AS pipeline, if(git_branch = '', '—', git_branch) AS branch, substring(git_commit, 1, 8) AS commit, worker_id FROM default.${table} WHERE nodeid = ${nodeid:singlequote} AND $__timeFilter(timestamp) ORDER BY time DESC LIMIT 100"
+          "rawSql": "SELECT timestamp AS time, status, when_phase, duration, if(ci_provider = 'local' OR ci_run_id = '', 'local', concat(ci_provider, ' #', ci_run_id)) AS pipeline, if(git_branch = '', '\u2014', git_branch) AS branch, substring(git_commit, 1, 8) AS commit, worker_id FROM default.${table} WHERE nodeid = ${nodeid:singlequote} AND $__timeFilter(timestamp) ORDER BY time DESC LIMIT 100"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Failure by branch",
+      "description": "Pass rate and failure count split by git branch. Helps distinguish between 'main is broken' and 'only feature branches fail'.",
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-pytest-observer"
+      },
+      "options": {
+        "showHeader": true,
+        "footer": {
+          "show": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "runs"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 70
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "failures"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "failure_rate_pct"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "failure rate %"
+              },
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.width",
+                "value": 120
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 10
+                    },
+                    {
+                      "color": "red",
+                      "value": 30
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-pytest-observer"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT if(git_branch = '', '(local / unknown)', git_branch) AS branch, count() AS runs, countIf(status IN ('failed', 'broken')) AS failures, round(countIf(status IN ('failed', 'broken')) / count() * 100, 1) AS failure_rate_pct FROM default.${table} WHERE nodeid = ${nodeid:singlequote} AND when_phase = 'call' AND $__timeFilter(timestamp) GROUP BY branch ORDER BY failures DESC, runs DESC LIMIT 20"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "table",
+      "title": "Events for this test",
+      "description": "Events recorded via record_event() for the selected test, sourced from the companion {table}_events table. Ordered newest-run first, then by call sequence within a run. If this panel shows an error the events table has not been created yet \u2014 run a test that calls record_event() first.",
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 24,
+        "h": 10
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-pytest-observer"
+      },
+      "options": {
+        "showHeader": true,
+        "footer": {
+          "show": false
+        },
+        "sortBy": [
+          {
+            "displayName": "time",
+            "desc": true
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "time"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeAsIso"
+              },
+              {
+                "id": "custom.width",
+                "value": 180
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "seq"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 50
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "event_name"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 160
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_id"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 280
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "test_status"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "passed": {
+                        "color": "green",
+                        "index": 0
+                      },
+                      "failed": {
+                        "color": "red",
+                        "index": 1
+                      },
+                      "broken": {
+                        "color": "orange",
+                        "index": 2
+                      },
+                      "skipped": {
+                        "color": "blue",
+                        "index": 3
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-pytest-observer"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT e.timestamp AS time, e.run_id, e.seq, e.event_name, toString(e.payload) AS payload, r.status AS test_status FROM default.${table}_events e LEFT JOIN (SELECT run_id, nodeid, argMax(status, timestamp) AS status FROM default.${table} WHERE when_phase = 'call' AND nodeid = ${nodeid:singlequote} GROUP BY run_id, nodeid) r ON e.run_id = r.run_id AND e.nodeid = r.nodeid WHERE $__timeFilter(e.timestamp) AND e.nodeid = ${nodeid:singlequote} ORDER BY e.timestamp DESC, e.seq ASC LIMIT 200"
         }
       ]
     }

@@ -73,6 +73,7 @@ Every connection setting can be supplied three ways, resolved in this order (hig
 | `--ch-table`       | `PYTEST_OBSERVER_CH_TABLE`       | `ch_table`                 | `pytest_results` |
 | `--ch-send-from`   | `PYTEST_OBSERVER_CH_SEND_FROM`   | `ch_send_from`             | `any`            |
 | `--ch-auto-migrate`| `PYTEST_OBSERVER_CH_AUTO_MIGRATE`| `ch_auto_migrate`          | `true`           |
+| `--custom-events`  | `PYTEST_OBSERVER_CUSTOM_EVENTS`  | `custom_events`            | `false`          |
 
 ### `--ch-send-from`: where rows come from
 
@@ -152,6 +153,40 @@ When `allure-pytest` is installed and tests use the standard Allure decorators, 
 - `@allure.title(...)` -> `allure_title`
 - `@allure.severity(...)` -> `allure_severity` (also stored in `allure_labels`)
 - `@allure.id(...)` -> `allure_id`
+
+## Custom events
+
+**Custom events are off by default.** Enable them with `--custom-events=true` (or the env / ini equivalent):
+
+```bash
+pytest --ch-url=localhost:8123 --custom-events=true
+```
+
+```python
+def test_order(record_event):
+    record_event("inventory", {"sku": "WIDGET-A", "ok": "true"})
+    record_event("payment", {"amount": "29.99", "ok": "false"})
+    ...
+```
+
+- Payload values must be `str` (cast numbers/bools yourself, e.g. `str(latency_ms)`). A non-string value raises `TypeError`. Storing numeric metrics as strings lets Grafana chart them without schema changes.
+- Events are captured for both passing and failing tests, in call order.
+- The fixture is always defined, so tests using it stay runnable even when the plugin is inactive (no `--ch-url`) or custom events are disabled.
+
+The events table is auto-created on first flush:
+
+```sql
+CREATE TABLE IF NOT EXISTS pytest_results_events (
+    run_id      String,
+    nodeid      String,
+    timestamp   DateTime64(3),
+    seq         UInt32,
+    event_name  LowCardinality(String),
+    payload     Map(String, String)
+) ENGINE = MergeTree
+ORDER BY (nodeid, timestamp, seq)
+PARTITION BY toYYYYMM(timestamp);
+```
 
 ## CI / git context detection
 

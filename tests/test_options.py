@@ -36,6 +36,7 @@ def test_defaults_when_nothing_set():
         "ch_table": "pytest_results",
         "ch_send_from": "any",
         "ch_auto_migrate": "true",
+        "custom_events": "false",
     }
 
 
@@ -90,16 +91,17 @@ def test_cli_overrides_env_and_ini(monkeypatch):
     assert resolved["ch_url"] == "cli-host:8123"
 
 
-def test_empty_string_env_is_respected():
-    import os
+def test_empty_string_env_falls_through_to_ini(monkeypatch):
+    monkeypatch.setenv("PYTEST_OBSERVER_CH_PASSWORD", "")
+    cfg = _FakeConfig(ini={"ch_password": "from-ini"})
+    resolved = options.resolve_options(cfg)
+    assert resolved["ch_password"] == "from-ini"
 
-    os.environ["PYTEST_OBSERVER_CH_PASSWORD"] = ""
-    try:
-        cfg = _FakeConfig(ini={"ch_password": "should-be-shadowed"})
-        resolved = options.resolve_options(cfg)
-        assert resolved["ch_password"] == ""
-    finally:
-        del os.environ["PYTEST_OBSERVER_CH_PASSWORD"]
+
+def test_empty_string_env_falls_through_to_default(monkeypatch):
+    monkeypatch.setenv("PYTEST_OBSERVER_CH_USER", "")
+    resolved = options.resolve_options(_FakeConfig())
+    assert resolved["ch_user"] == "default"
 
 
 def test_ini_only_picks_up_truthy_strings():
