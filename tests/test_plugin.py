@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import time
 from types import SimpleNamespace
 
 import pytest
 
+from pytest_test_observer import plugin as plugin_module
 from pytest_test_observer import reporter as reporter_module
 from pytest_test_observer.plugin import _build_row, _should_record, _worker_id
+from pytest_test_observer.reporter import ClickHouseReporter
 
 # Plugin tests share the buffer-and-run-id isolation fixture from conftest.py.
 pytestmark = pytest.mark.usefixtures("isolate_buffer_and_run_id")
@@ -126,6 +129,38 @@ def test_clickhouse_failure_falls_back_to_jsonl(pytester, monkeypatch, tmp_path)
     assert {row["nodeid"].rsplit("::", 1)[-1] for row in parsed} == {"test_a", "test_b"}
     assert all(row["run_id"] == "test-run-1" for row in parsed)
     assert all(row["status"] == "passed" for row in parsed)
+
+
+def test_slow_events_flush_does_not_rebuffer_successful_results(pytester, monkeypatch, tmp_path):
+    monkeypatch.setattr(plugin_module, "_FLUSH_TIMEOUT", 0.3)
+
+    def fast_flush(self, rows, run_id, *, buffer_on_failure=True):
+        return True
+
+    def slow_flush_events(self, rows, run_id, *, buffer_on_failure=True):
+        time.sleep(2.0)
+        return True
+
+    monkeypatch.setattr(ClickHouseReporter, "flush", fast_flush)
+    monkeypatch.setattr(ClickHouseReporter, "flush_events", slow_flush_events)
+
+    pytester.makepyfile(
+        """
+        def test_one(record_event):
+            record_event("marker", {"k": "v"})
+            assert True
+        """
+    )
+    result = pytester.runpytest_inprocess(
+        "--ch-url=localhost:8123", "--ch-table=t", "--custom-events=true"
+    )
+    result.assert_outcomes(passed=1)
+
+    results_buffer = tmp_path / "cache" / "pytest-test-observer" / "test-run-1.jsonl"
+    assert not results_buffer.exists(), (
+        f"results were re-buffered at {results_buffer} despite a successful ClickHouse "
+        "insert — the timeout path would duplicate them on replay"
+    )
 
 
 def test_config_from_pytest_ini(pytester, fake_clients):

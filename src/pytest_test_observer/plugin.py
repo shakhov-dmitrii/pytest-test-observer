@@ -5,6 +5,7 @@ import os
 import threading
 import uuid
 import warnings
+from collections.abc import Mapping
 from datetime import datetime, timezone
 
 import pytest
@@ -19,6 +20,7 @@ from pytest_test_observer.allure_compat import (
 from pytest_test_observer.constants import EVENTS_SUFFIX
 from pytest_test_observer.context import detect_ci_context, is_ci
 from pytest_test_observer.helper import as_bool
+from pytest_test_observer.models import AllureMeta
 from pytest_test_observer.options import add_options, resolve_options
 from pytest_test_observer.reporter import ClickHouseReporter
 
@@ -27,6 +29,7 @@ _USER_PROP_ALLURE = "_test_observer_allure"
 _USER_PROP_TIMING = "_test_observer_timing"
 _USER_PROP_EVENTS = "_test_observer_events"
 _EVENTS_STASH_KEY: pytest.StashKey[list] = pytest.StashKey()
+_PLUGIN_STASH_KEY: pytest.StashKey[ObserverPlugin] = pytest.StashKey()
 _FLUSH_TIMEOUT = 10.0
 
 
@@ -41,15 +44,15 @@ def pytest_configure(config: pytest.Config) -> None:
     if str(opts["ch_send_from"]).lower() == "ci" and not is_ci():
         return
     plugin = ObserverPlugin(config, opts)
-    config._test_observer = plugin
+    config.stash[_PLUGIN_STASH_KEY] = plugin
     config.pluginmanager.register(plugin, "test_observer_plugin")
 
 
 def pytest_unconfigure(config: pytest.Config) -> None:
-    plugin = getattr(config, "_test_observer", None)
+    plugin = config.stash.get(_PLUGIN_STASH_KEY, None)
     if plugin is not None and config.pluginmanager.is_registered(plugin):
         config.pluginmanager.unregister(plugin)
-    config._test_observer = None
+        del config.stash[_PLUGIN_STASH_KEY]
 
 
 class ObserverPlugin:
@@ -58,7 +61,7 @@ class ObserverPlugin:
         self.opts = opts
         self.is_worker = hasattr(config, "workerinput")
         self.run_id = os.environ.get("PYTEST_OBSERVER_RUN_ID") or str(uuid.uuid4())
-        self.context = detect_ci_context() if not self.is_worker else {}
+        self.context: Mapping[str, object] = detect_ci_context() if not self.is_worker else {}
         self.results: list = []
         self.events: list = []
         self.events_enabled = as_bool(opts["custom_events"], default=False)
@@ -75,7 +78,8 @@ class ObserverPlugin:
             (_USER_PROP_TIMING, (getattr(call, "start", None), getattr(call, "stop", None)))
         )
         if report.when == "call" and _EVENTS_STASH_KEY in item.stash:
-            report.user_properties.append((_USER_PROP_EVENTS, list(item.stash[_EVENTS_STASH_KEY])))
+            recorded = item.stash[_EVENTS_STASH_KEY]
+            report.user_properties.append((_USER_PROP_EVENTS, list(recorded)))
 
     def pytest_runtest_logreport(self, report: pytest.TestReport) -> None:
         if self.is_worker:
@@ -128,15 +132,17 @@ class ObserverPlugin:
         rows = list(self.results)
         events = list(self.events)
         flush_done = threading.Event()
-        # Serializes buffer writes so the flush thread and main thread can't both append to the same {run_id}.jsonl file (race that otherwise duplicates rows on the next replay).
-        buffer_lock = threading.Lock()
-        buffered = {"results": False, "events": False}
 
-        def _safe_buffer(kind: str) -> None:
-            with buffer_lock:
-                if buffered[kind]:
+        outcome_lock = threading.Lock()
+        resolved = {"results": False, "events": False}
+
+        def _resolve(kind: str, ch_ok: bool) -> None:
+            with outcome_lock:
+                if resolved[kind]:
                     return
-                buffered[kind] = True
+                resolved[kind] = True
+            if ch_ok:
+                return
             with contextlib.suppress(Exception):
                 if kind == "results":
                     buffer.write_jsonl(rows=rows, run_id=self.run_id, suffix="")
@@ -145,10 +151,10 @@ class ObserverPlugin:
 
         def _run_flush() -> None:
             try:
-                if not reporter.flush(rows, self.run_id, buffer_on_failure=False):
-                    _safe_buffer("results")
-                if not reporter.flush_events(events, self.run_id, buffer_on_failure=False):
-                    _safe_buffer("events")
+                _resolve("results", reporter.flush(rows, self.run_id, buffer_on_failure=False))
+                _resolve(
+                    "events", reporter.flush_events(events, self.run_id, buffer_on_failure=False)
+                )
             finally:
                 flush_done.set()
 
@@ -161,11 +167,11 @@ class ObserverPlugin:
 
         if not flush_done.wait(timeout=_FLUSH_TIMEOUT):
             warnings.warn(
-                "[pytest-test-observer] flush thread timed out; buffering to disk",
+                "[pytest-test-observer] flush thread timed out; buffering unfinished batches to disk",
                 stacklevel=2,
             )
-            _safe_buffer("results")
-            _safe_buffer("events")
+            _resolve("results", ch_ok=False)
+            _resolve("events", ch_ok=False)
 
 
 def _should_record(report: pytest.TestReport) -> bool:
@@ -175,7 +181,7 @@ def _should_record(report: pytest.TestReport) -> bool:
         return bool(report.failed or report.skipped)
     if report.when == "teardown":
         return bool(report.failed)
-    return False
+    return False  # type: ignore[unreachable]  # defensive: report.when is a closed Literal
 
 
 def _build_row(*, report, run_id, markers, allure_meta, timing, context) -> dict:
@@ -205,7 +211,7 @@ def _build_row(*, report, run_id, markers, allure_meta, timing, context) -> dict
 
 def _read_user_properties(report: pytest.TestReport) -> tuple:
     markers: list = []
-    allure_meta: dict = empty_allure_meta()
+    allure_meta: AllureMeta = empty_allure_meta()
     timing: tuple = (None, None)
     for key, value in getattr(report, "user_properties", []):
         if key == _USER_PROP_MARKERS:
