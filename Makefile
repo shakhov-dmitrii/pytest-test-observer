@@ -1,7 +1,7 @@
 UV ?= uv
 CH_PASSWORD ?=
 
-.PHONY: help install test lint format coverage build clean smoke example
+.PHONY: help install test lint typecheck format coverage build clean smoke example
 
 install:
 	$(UV) sync
@@ -12,6 +12,9 @@ test:
 
 lint:
 	$(UV) run ruff check .
+
+typecheck:
+	$(UV) run mypy
 
 format:
 	$(UV) run ruff format .

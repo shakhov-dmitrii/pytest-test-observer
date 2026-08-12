@@ -1,3 +1,6 @@
+# `make install` runs `pre-commit install`, which wires up both hook types below.
+default_install_hook_types: [pre-commit, pre-push]
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
@@ -23,9 +26,18 @@ repos:
         pass_filenames: false
         types: [python]
 
+      - id: make-typecheck
+        name: Type check (make typecheck)
+        entry: make typecheck
+        language: system
+        pass_filenames: false
+        types: [python]
+
+      # Tests are slow; run them on push rather than on every commit.
       - id: make-test
         name: Unit tests
         entry: make test
         language: system
         pass_filenames: false
+        stages: [pre-push]
         types: [python]

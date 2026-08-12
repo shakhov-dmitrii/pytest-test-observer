@@ -116,7 +116,7 @@ class ClickHouseReporter:
         finally:
             metrics["flush_seconds"] = time.perf_counter() - start
             _maybe_write_metrics(metrics)
-        return metrics["ok"]
+        return bool(metrics["ok"])
 
     def flush_events(self, rows: list, run_id: str, *, buffer_on_failure: bool = True) -> bool:
         if not rows:
