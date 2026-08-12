@@ -132,15 +132,17 @@ class ObserverPlugin:
         rows = list(self.results)
         events = list(self.events)
         flush_done = threading.Event()
-        # Serializes buffer writes so the flush thread and main thread can't both append to the same {run_id}.jsonl file (race that otherwise duplicates rows on the next replay).
-        buffer_lock = threading.Lock()
-        buffered = {"results": False, "events": False}
 
-        def _safe_buffer(kind: str) -> None:
-            with buffer_lock:
-                if buffered[kind]:
+        outcome_lock = threading.Lock()
+        resolved = {"results": False, "events": False}
+
+        def _resolve(kind: str, ch_ok: bool) -> None:
+            with outcome_lock:
+                if resolved[kind]:
                     return
-                buffered[kind] = True
+                resolved[kind] = True
+            if ch_ok:
+                return
             with contextlib.suppress(Exception):
                 if kind == "results":
                     buffer.write_jsonl(rows=rows, run_id=self.run_id, suffix="")
@@ -149,10 +151,10 @@ class ObserverPlugin:
 
         def _run_flush() -> None:
             try:
-                if not reporter.flush(rows, self.run_id, buffer_on_failure=False):
-                    _safe_buffer("results")
-                if not reporter.flush_events(events, self.run_id, buffer_on_failure=False):
-                    _safe_buffer("events")
+                _resolve("results", reporter.flush(rows, self.run_id, buffer_on_failure=False))
+                _resolve(
+                    "events", reporter.flush_events(events, self.run_id, buffer_on_failure=False)
+                )
             finally:
                 flush_done.set()
 
@@ -165,11 +167,11 @@ class ObserverPlugin:
 
         if not flush_done.wait(timeout=_FLUSH_TIMEOUT):
             warnings.warn(
-                "[pytest-test-observer] flush thread timed out; buffering to disk",
+                "[pytest-test-observer] flush thread timed out; buffering unfinished batches to disk",
                 stacklevel=2,
             )
-            _safe_buffer("results")
-            _safe_buffer("events")
+            _resolve("results", ch_ok=False)
+            _resolve("events", ch_ok=False)
 
 
 def _should_record(report: pytest.TestReport) -> bool:

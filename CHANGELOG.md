@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `mypy` now runs in CI and pre-commit; the plugin stores its instance on `config.stash` (typed `StashKey`) instead of an ad-hoc `config._test_observer` attribute
 - Unit tests moved from the `pre-commit` hook to `pre-push`, so committing stays fast (formatting, lint and type-check still run on commit)
 
+### Fixed
+
+- Flush timeout no longer re-buffers a batch that already reached ClickHouse. Each batch (results / events) is now resolved exactly once.
+
 ## [0.2.0] - 2026-06-13
 
 ### Added
